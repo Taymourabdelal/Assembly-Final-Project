@@ -10,15 +10,23 @@
 #include  <iomanip>
 #include <math.h>
 #include <string>
+
 #include <ctime>
  int byte4 [8000][2],byte8[4000][2],byte16[2000][2] ,byte32[1000][2], byte64[500][2] ,byte128[250][2];
 // -------- Global variables ----------
  // Controls direct mapping size
 
+#include <time.h>
+
+
+
 //-----FA-------------------
 int FAI = 0; // The Fully Associative index
-  bool fullFlag = false; // Bool to activate the policies
+
+bool fullFlag = false; // Bool to activate the policies
 bool LIFO = false;
+
+
 //---------END of FA --------
 //--------------------------------------
 using namespace std;
@@ -151,10 +159,12 @@ bool readOrWrite () // Random read write gen , returnf false if write and true i
 void FAParse (int addr , string & tag)
 {
     string strAddr ;
-
+    
     strAddr = decToBin(to_string(addr));
 
+
     tag = strAddr.substr(0,27);
+
     
 }
 
@@ -163,9 +173,12 @@ void getTagIndex( int addr , string & index, string & tag , int wordSize) // par
     string strAddr ;
    // cout <<endl<<addr<<endl;
     strAddr = decToBin(to_string(addr));
+
    // cout << endl<<strAddr<<endl;
     tag = strAddr.substr(0,17);
    // cout << tag << "hi";
+
+
     
     if (wordSize == 4)
     {
@@ -190,10 +203,48 @@ void getTagIndex( int addr , string & index, string & tag , int wordSize) // par
     else if (wordSize == 128)
     {
         index = strAddr.substr(17,8);
+
+
     }
-    //hi
     
-   
+    
+    
+}
+
+void Setassociative_tagindex(int setSize,int addr, string &index, string &tag)
+{
+    string strAddr ;
+    cout <<endl<<addr<<endl;
+    strAddr = decToBin(to_string(addr));
+    cout << endl<<strAddr<<endl;
+    cout << tag << "hi";
+    
+    if(setSize==4)
+    {
+        index=strAddr.substr(19,10);
+        tag = strAddr.substr(2,18);
+
+    }
+    else  if(setSize==8)
+    {
+        index=strAddr.substr(20,9);
+        tag = strAddr.substr(1,19);
+    }
+    else  if(setSize==16)
+    {
+        index=strAddr.substr(21,8);
+        tag = strAddr.substr(1,20);
+    }
+
+    else  if(setSize==2)
+    {
+        index=strAddr.substr(18,11);
+        tag = strAddr.substr(1,17);
+
+    }
+
+    
+
     
 }
 // ------- Hit Ration Function ------------------
@@ -203,6 +254,465 @@ float hitRatio ( int hit , int miss) // Gets the hit ratio
     
     return hit / totAc ;
 }
+
+// ------- Set associative Function ------------------
+
+void SetAssociative2 (int address , int a[][6], int & hit , int & miss )
+{
+    int tag , index , valid;
+    string strAddr , strTag , strIndex;
+    int FIFOCounter = 0;
+    time_t timer;
+    bool hitten = false;
+    int rep=0;
+    int sizes=2;
+    Setassociative_tagindex (sizes, address , strIndex , strTag);
+    
+    cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
+    tag = binToDec( strTag);
+    index = binToDec(strIndex);
+    cout << "Index dec:" << index << endl;
+    
+
+    
+    
+    
+    if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+             if ((a[index][3] == tag) && (a[index][4] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    
+    if(hitten == false)
+        {
+            
+            for(int i=1; i<6;i+=3)
+            {
+                if(a[index][i]==0)
+                    
+                {
+                    miss++;
+                    timer = time(NULL);
+                    a[index][i-1] = tag;
+                    a[index][i] = 1;
+                    a[index][i+1] = timer;
+                    rep=1;
+                    break;
+                }
+            }
+        }
+        
+        if(hitten==false && rep==0)
+        {
+            
+            miss++;
+            
+            for(int i=2;i+3<6;i+=3)
+            {
+                if(a[index][i]<a[index][i+3])
+                    
+                    FIFOCounter=i;
+                else
+                    
+                    FIFOCounter=i+3;
+            }
+            {
+                timer = time(NULL);
+                
+                a[index][FIFOCounter-2] = tag;
+                a[index][FIFOCounter-1] = 1;
+                a[index][FIFOCounter] = timer;
+            }
+            
+        }
+
+    
+    
+    
+    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
+    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
+}
+
+
+void SetAssociative4 (int address , int a[][12], int & hit , int & miss )
+{
+    int tag , index , valid;
+    string strAddr , strTag , strIndex;
+    int FIFOCounter = 0;
+    time_t timer;
+    bool hitten =false;
+    int sizes = 4;
+    int rep=0;
+    Setassociative_tagindex (sizes, address , strIndex , strTag);
+    
+    cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
+    tag = binToDec( strTag);
+    index = binToDec(strIndex);
+    cout << "Index dec:" << index << endl;
+    
+    
+    
+        
+        
+        if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
+        {
+            hit++;
+            hitten =true;
+            rep=1;
+        }
+        if ((a[index][3] == tag) && (a[index][4] == 1))// tag and valid
+        {
+            hit++;
+            hitten =true;
+            rep=1;
+        }
+        if ((a[index][6] == tag) && (a[index][7] == 1))// tag and valid
+        {
+            hit++;
+            hitten =true;
+            rep=1;
+        }
+        if ((a[index][9] == tag) && (a[index][10] == 1))// tag and valid
+        {
+            hit++;
+            hitten =true;
+            rep=1;
+        }
+    
+        if(hitten == false)
+        {
+            for(int i=1; i<12;i+=3)
+        {
+            if(a[index][i]==0)
+                
+            {
+                miss++;
+                timer = time(NULL);
+                a[index][i-1] = tag;
+                a[index][i] = 1;
+                a[index][i+1] = timer;
+                rep=1;
+                break;
+            }
+        }
+        }
+    
+     if(hitten==false && rep==0)
+           {
+               
+               miss++;
+               
+               for(int i=2;i+3<12;i+=3)
+               {
+                   if(a[index][i]<a[index][i+3])
+                       
+                       FIFOCounter=i;
+                   else
+                       
+                       FIFOCounter=i+3;
+               }
+               {
+                   timer = time(NULL);
+                   
+                   a[index][FIFOCounter-2] = tag;
+                   a[index][FIFOCounter-1] = 1;
+                   a[index][FIFOCounter] = timer;
+               }
+               
+           }
+
+    
+    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
+    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
+}
+void SetAssociative8 (int address , int a[][24], int & hit , int & miss )
+{
+    int tag , index , valid;
+    string strAddr , strTag , strIndex;
+    int FIFOCounter = 0;
+    time_t timer;
+    bool hitten = false;
+    int sizes = 8;
+    int rep=0;
+    
+    Setassociative_tagindex (sizes, address , strIndex , strTag);
+    
+    cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
+    tag = binToDec( strTag);
+    index = binToDec(strIndex);
+    cout << "Index dec:" << index << endl;
+    
+    
+    
+    
+    
+    if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][3] == tag) && (a[index][4] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][6] == tag) && (a[index][7] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][9] == tag) && (a[index][10] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][12] == tag) && (a[index][13] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][15] == tag) && (a[index][16] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][18] == tag) && (a[index][19] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][21] == tag) && (a[index][22] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if(hitten == false)
+    {
+        for(int i=1; i<24;i+=3)
+        {
+            if(a[index][i]==0)
+                
+            {
+                miss++;
+                timer = time(NULL);
+                a[index][i-1] = tag;
+                a[index][i] = 1;
+                a[index][i+1] = timer;
+                rep=1;
+                break;
+            }
+        }
+    }
+
+    
+    if(hitten==false && rep==0)
+    {
+        miss++;
+        for(int i=2;i+3<24;i+=3)
+        {
+            if(a[index][i]<a[index][i+3])
+                
+                FIFOCounter=i;
+            else
+                
+                FIFOCounter=i+3;
+        }
+        {
+            timer = time(NULL);
+            
+            a[index][FIFOCounter-2] = tag;
+            a[index][FIFOCounter-1] = 1;
+            a[index][FIFOCounter] = timer;
+        }
+        
+    }
+    
+    
+    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
+    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
+}
+
+void SetAssociative16 (int address , int a[][48], int & hit , int & miss )
+{
+    int tag , index , valid;
+    string strAddr , strTag , strIndex;
+    int FIFOCounter = 0;
+    time_t timer;
+    bool hitten = false;
+    int sizes = 16;
+    int rep=0;
+    Setassociative_tagindex (sizes, address , strIndex , strTag);
+    
+    cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
+    tag = binToDec( strTag);
+    index = binToDec(strIndex);
+    cout << "Index dec:" << index << endl;
+    
+    
+    
+    
+    
+    if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    
+    if ((a[index][3] == tag) && (a[index][4] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][6] == tag) && (a[index][7] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][9] == tag) && (a[index][10] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][12] == tag) && (a[index][13] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][15] == tag) && (a[index][16] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][18] == tag) && (a[index][19] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][21] == tag) && (a[index][22] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][24] == tag) && (a[index][25] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][27] == tag) && (a[index][28] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][30] == tag) && (a[index][31] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][33] == tag) && (a[index][34] == 1))// tag and valid
+    {
+        hit++;
+        rep=1;
+        hitten =true;
+    }
+    if ((a[index][36] == tag) && (a[index][37] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][39] == tag) && (a[index][40] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    
+    if ((a[index][42] == tag) && (a[index][43] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    if ((a[index][45] == tag) && (a[index][46] == 1))// tag and valid
+    {
+        hit++;
+        hitten =true;
+        rep=1;
+    }
+    
+    if(hitten == false)
+    {
+        for(int i=1; i<48;i+=3)
+        {
+            if(a[index][i]==0)
+                
+            {
+                miss++;
+                timer = time(NULL);
+                a[index][i-1] = tag;
+                a[index][i] = 1;
+                a[index][i+1] = timer;
+                rep=1;
+                break;
+                
+            }
+        }
+    }
+
+    if(hitten==false && rep==0)
+    {
+        miss++;
+        for(int i=2;i+3<48;i+=3)
+        {
+            if(a[index][i]<a[index][i+3])
+                
+                FIFOCounter=i;
+            else
+                
+                FIFOCounter=i+3;
+        }
+        {
+            timer = time(NULL);
+            
+            a[index][FIFOCounter-2] = tag;
+            a[index][FIFOCounter-1] = 1;
+            a[index][FIFOCounter] = timer;
+        }
+        
+    }
+    
+    
+    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
+    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
+}
+
+
 //----------------Fully Associative Function ---------------
 
 void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FApolicy , int & AMATWT , int & AMATWB)
@@ -210,9 +720,12 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
    // cout<<hit;
     string strtag;
     int tag;
+
     
   
     FAParse ( address , strtag );
+
+
     tag = binToDec( strtag);
     if ( FAI == 124)
     {
@@ -227,7 +740,7 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
             LIFO = false;
         }
         
-       
+        
     }
    
     
@@ -242,7 +755,7 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
                 hit ++;
             }
         }
-       
+        
         if (hitf == false)
         {
             
@@ -253,6 +766,7 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
         }
         
     } //end of first if
+
   else if ( fullFlag == true)
   {
       if (FAI == 0)
@@ -367,6 +881,8 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
     
    // cout<<"FAI"<<FAI<<endl;
 
+
+   
 }
 // ------------- Direct Mapping Function ----------------------
 void directMapping ( int a[][2] ,int n ,  int address ,int & hit , int & miss , int wordsize)
@@ -374,25 +890,27 @@ void directMapping ( int a[][2] ,int n ,  int address ,int & hit , int & miss , 
     int tag , index , valid;
     string strAddr , strTag , strIndex;
     
+
     getTagIndex (address , strIndex , strTag , wordsize);
    
    // cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
     tag = binToDec( strTag);
    index = binToDec(strIndex);
    // cout << "Index dec:" << index << endl;
+
     
- 
+    
     
     if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
     {
         hit++;
     }
-        else
-        {
-            miss++;
-            a[index][0] = tag;
-            a[index][1] = 1;
-        }
+    else
+    {
+        miss++;
+        a[index][0] = tag;
+        a[index][1] = 1;
+    }
     
 //    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
 //    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
@@ -426,17 +944,28 @@ void nullifyArray2( int a[][2] , int n )
 
 
 
+
 char *msg[2] = {"Miss","Hit"};
 // ---------------- MAIN------------------------
 int main() 
+
+
 {
     int wordSize = 4;
     int FApolicy = 2;
     int Hit , Miss = 0 ;
     int iter , mem;
+
    
     int FA [125][3] ;
     int amatWBFA = 0 , amatWTFA = 0 ;
+
+    int byte4 [8000][2],byte8[4000][2],byte16[2000][2] ,byte32[1000][2], byte64[500][2] ,byte128[250][2];
+    
+    
+    int set4 [1024][12],set8[512][24],set16[256][48] ,set2[2048][6];
+    
+
     cacheResType r;
     
     srand((unsigned) time (NULL));
@@ -446,6 +975,8 @@ int main()
     
     
     cout << "Cache Simulator\n";
+
+  
 //     cout <<"----------------- MEM GEN 1----------------------" << endl;
 //    
 //    for (int i = 0 ; i <1000000 ; i++)
@@ -603,6 +1134,10 @@ int main()
         
         
         
+
+        
+        SetAssociative2(mem , set2, Hit , Miss);
+
     }
     
   
@@ -833,11 +1368,11 @@ int main()
 
     
     // change the number of iterations into a minimum of 1,000,000
-//    for(iter=0;iter<100000;iter++)
-//    {
-//        addr = memGen1();
-//        r = cacheSim(addr);
-//        cout <<"0x" << setfill('0') << setw(8) << hex << addr <<" ("<< msg[r] <<")\n";
-//    }
+    //    for(iter=0;iter<100000;iter++)
+    //    {
+    //        addr = memGen1();
+    //        r = cacheSim(addr);
+    //        cout <<"0x" << setfill('0') << setw(8) << hex << addr <<" ("<< msg[r] <<")\n";
+    //    }
     //commit
 }
