@@ -10,23 +10,16 @@
 #include  <iomanip>
 #include <math.h>
 #include <string>
-
 #include <ctime>
- int byte4 [8000][2],byte8[4000][2],byte16[2000][2] ,byte32[1000][2], byte64[500][2] ,byte128[250][2];
+ int byte4 [8000][3],byte8[4000][3],byte16[2000][3] ,byte32[1000][3], byte64[500][3] ,byte128[250][3] , DMamat[250][3];
 // -------- Global variables ----------
  // Controls direct mapping size
 
-#include <time.h>
-
-
-
 //-----FA-------------------
-int FAI = 0; // The Fully Associative index
-
-bool fullFlag = false; // Bool to activate the policies
+int FAI = 0;// The Fully Associative index
+int FAIamat = 0;
+  bool fullFlag = false; // Bool to activate the policies
 bool LIFO = false;
-
-
 //---------END of FA --------
 //--------------------------------------
 using namespace std;
@@ -159,12 +152,10 @@ bool readOrWrite () // Random read write gen , returnf false if write and true i
 void FAParse (int addr , string & tag)
 {
     string strAddr ;
-    
+
     strAddr = decToBin(to_string(addr));
 
-
     tag = strAddr.substr(0,27);
-
     
 }
 
@@ -173,12 +164,9 @@ void getTagIndex( int addr , string & index, string & tag , int wordSize) // par
     string strAddr ;
    // cout <<endl<<addr<<endl;
     strAddr = decToBin(to_string(addr));
-
    // cout << endl<<strAddr<<endl;
     tag = strAddr.substr(0,17);
    // cout << tag << "hi";
-
-
     
     if (wordSize == 4)
     {
@@ -203,529 +191,113 @@ void getTagIndex( int addr , string & index, string & tag , int wordSize) // par
     else if (wordSize == 128)
     {
         index = strAddr.substr(17,8);
-
-
     }
+    //hi
     
-    
+   
     
 }
 
-void Setassociative_tagindex(int setSize,int addr, string &index, string &tag)
+
+void getTagIndexAmat( int addr , string & index, string & tag , int wordSize) // parses the string into the different bits for direct mapping
 {
     string strAddr ;
-    cout <<endl<<addr<<endl;
+    // cout <<endl<<addr<<endl;
     strAddr = decToBin(to_string(addr));
-    cout << endl<<strAddr<<endl;
-    cout << tag << "hi";
+    // cout << endl<<strAddr<<endl;
+    tag = strAddr.substr(0,19);
+    index = strAddr.substr(19,8);
+    // cout << tag << "hi";
+}
+
+// --------- AMAT WB------------------
+
+void AMATWBFA ( int & misscount , int dirty)
+{
+    bool row = readOrWrite();
     
-    if(setSize==4)
+    if (row == true)
     {
-        index=strAddr.substr(19,10);
-        tag = strAddr.substr(2,18);
-
+        if (dirty == 0)
+        {
+            misscount += 11;
+            
+        }
+        else misscount += 21;
+            
+        
     }
-    else  if(setSize==8)
+    else if ( row == false)
     {
-        index=strAddr.substr(20,9);
-        tag = strAddr.substr(1,19);
+        if ( dirty == 0)
+        {
+            misscount +=1;
+        }
+        else misscount +=11;
     }
-    else  if(setSize==16)
-    {
-        index=strAddr.substr(21,8);
-        tag = strAddr.substr(1,20);
-    }
+}
 
-    else  if(setSize==2)
-    {
-        index=strAddr.substr(18,11);
-        tag = strAddr.substr(1,17);
-
-    }
-
+float CalculatingAMATWB ( int misses , int hits , int misscount)
+{
+   float missratio = misses/1000000.0;
     
+   float amat;
+   amat = missratio * misscount;
+  
+    amat = amat + hits ;
 
+  
+    return amat;
     
 }
+
+// ------------ AMAT WT------------
+void  AMATWTFA(bool hitf ,int & amath)
+{
+    bool row =  readOrWrite( );
+    
+    if ( row  == false)
+    {
+        if ( hitf == true)
+        {
+            amath +=1;
+        }
+    }
+    else
+    {
+        if (hitf == true)
+        {
+            amath +=11;
+        }
+    }
+    
+}
+
+float CalculatingAMATWT (int hits,int misses )
+{
+   float missratio =  misses / 1000000.0;
+float amat;
+    amat = hits + (missratio * misses * 11);
+    return amat;
+}
+
 // ------- Hit Ration Function ------------------
 float hitRatio ( int hit , int miss) // Gets the hit ratio
 {
-    float totAc = hit + miss ;
+    float totAc = 1000000.0 ;
     
     return hit / totAc ;
 }
-
-// ------- Set associative Function ------------------
-
-void SetAssociative2 (int address , int a[][6], int & hit , int & miss )
-{
-    int tag , index , valid;
-    string strAddr , strTag , strIndex;
-    int FIFOCounter = 0;
-    time_t timer;
-    bool hitten = false;
-    int rep=0;
-    int sizes=2;
-    Setassociative_tagindex (sizes, address , strIndex , strTag);
-    
-    cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
-    tag = binToDec( strTag);
-    index = binToDec(strIndex);
-    cout << "Index dec:" << index << endl;
-    
-
-    
-    
-    
-    if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-             if ((a[index][3] == tag) && (a[index][4] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    
-    if(hitten == false)
-        {
-            
-            for(int i=1; i<6;i+=3)
-            {
-                if(a[index][i]==0)
-                    
-                {
-                    miss++;
-                    timer = time(NULL);
-                    a[index][i-1] = tag;
-                    a[index][i] = 1;
-                    a[index][i+1] = timer;
-                    rep=1;
-                    break;
-                }
-            }
-        }
-        
-        if(hitten==false && rep==0)
-        {
-            
-            miss++;
-            
-            for(int i=2;i+3<6;i+=3)
-            {
-                if(a[index][i]<a[index][i+3])
-                    
-                    FIFOCounter=i;
-                else
-                    
-                    FIFOCounter=i+3;
-            }
-            {
-                timer = time(NULL);
-                
-                a[index][FIFOCounter-2] = tag;
-                a[index][FIFOCounter-1] = 1;
-                a[index][FIFOCounter] = timer;
-            }
-            
-        }
-
-    
-    
-    
-    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
-    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
-}
-
-
-void SetAssociative4 (int address , int a[][12], int & hit , int & miss )
-{
-    int tag , index , valid;
-    string strAddr , strTag , strIndex;
-    int FIFOCounter = 0;
-    time_t timer;
-    bool hitten =false;
-    int sizes = 4;
-    int rep=0;
-    Setassociative_tagindex (sizes, address , strIndex , strTag);
-    
-    cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
-    tag = binToDec( strTag);
-    index = binToDec(strIndex);
-    cout << "Index dec:" << index << endl;
-    
-    
-    
-        
-        
-        if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
-        {
-            hit++;
-            hitten =true;
-            rep=1;
-        }
-        if ((a[index][3] == tag) && (a[index][4] == 1))// tag and valid
-        {
-            hit++;
-            hitten =true;
-            rep=1;
-        }
-        if ((a[index][6] == tag) && (a[index][7] == 1))// tag and valid
-        {
-            hit++;
-            hitten =true;
-            rep=1;
-        }
-        if ((a[index][9] == tag) && (a[index][10] == 1))// tag and valid
-        {
-            hit++;
-            hitten =true;
-            rep=1;
-        }
-    
-        if(hitten == false)
-        {
-            for(int i=1; i<12;i+=3)
-        {
-            if(a[index][i]==0)
-                
-            {
-                miss++;
-                timer = time(NULL);
-                a[index][i-1] = tag;
-                a[index][i] = 1;
-                a[index][i+1] = timer;
-                rep=1;
-                break;
-            }
-        }
-        }
-    
-     if(hitten==false && rep==0)
-           {
-               
-               miss++;
-               
-               for(int i=2;i+3<12;i+=3)
-               {
-                   if(a[index][i]<a[index][i+3])
-                       
-                       FIFOCounter=i;
-                   else
-                       
-                       FIFOCounter=i+3;
-               }
-               {
-                   timer = time(NULL);
-                   
-                   a[index][FIFOCounter-2] = tag;
-                   a[index][FIFOCounter-1] = 1;
-                   a[index][FIFOCounter] = timer;
-               }
-               
-           }
-
-    
-    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
-    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
-}
-void SetAssociative8 (int address , int a[][24], int & hit , int & miss )
-{
-    int tag , index , valid;
-    string strAddr , strTag , strIndex;
-    int FIFOCounter = 0;
-    time_t timer;
-    bool hitten = false;
-    int sizes = 8;
-    int rep=0;
-    
-    Setassociative_tagindex (sizes, address , strIndex , strTag);
-    
-    cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
-    tag = binToDec( strTag);
-    index = binToDec(strIndex);
-    cout << "Index dec:" << index << endl;
-    
-    
-    
-    
-    
-    if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][3] == tag) && (a[index][4] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][6] == tag) && (a[index][7] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][9] == tag) && (a[index][10] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][12] == tag) && (a[index][13] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][15] == tag) && (a[index][16] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][18] == tag) && (a[index][19] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][21] == tag) && (a[index][22] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if(hitten == false)
-    {
-        for(int i=1; i<24;i+=3)
-        {
-            if(a[index][i]==0)
-                
-            {
-                miss++;
-                timer = time(NULL);
-                a[index][i-1] = tag;
-                a[index][i] = 1;
-                a[index][i+1] = timer;
-                rep=1;
-                break;
-            }
-        }
-    }
-
-    
-    if(hitten==false && rep==0)
-    {
-        miss++;
-        for(int i=2;i+3<24;i+=3)
-        {
-            if(a[index][i]<a[index][i+3])
-                
-                FIFOCounter=i;
-            else
-                
-                FIFOCounter=i+3;
-        }
-        {
-            timer = time(NULL);
-            
-            a[index][FIFOCounter-2] = tag;
-            a[index][FIFOCounter-1] = 1;
-            a[index][FIFOCounter] = timer;
-        }
-        
-    }
-    
-    
-    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
-    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
-}
-
-void SetAssociative16 (int address , int a[][48], int & hit , int & miss )
-{
-    int tag , index , valid;
-    string strAddr , strTag , strIndex;
-    int FIFOCounter = 0;
-    time_t timer;
-    bool hitten = false;
-    int sizes = 16;
-    int rep=0;
-    Setassociative_tagindex (sizes, address , strIndex , strTag);
-    
-    cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
-    tag = binToDec( strTag);
-    index = binToDec(strIndex);
-    cout << "Index dec:" << index << endl;
-    
-    
-    
-    
-    
-    if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    
-    if ((a[index][3] == tag) && (a[index][4] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][6] == tag) && (a[index][7] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][9] == tag) && (a[index][10] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][12] == tag) && (a[index][13] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][15] == tag) && (a[index][16] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][18] == tag) && (a[index][19] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][21] == tag) && (a[index][22] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][24] == tag) && (a[index][25] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][27] == tag) && (a[index][28] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][30] == tag) && (a[index][31] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][33] == tag) && (a[index][34] == 1))// tag and valid
-    {
-        hit++;
-        rep=1;
-        hitten =true;
-    }
-    if ((a[index][36] == tag) && (a[index][37] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][39] == tag) && (a[index][40] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    
-    if ((a[index][42] == tag) && (a[index][43] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    if ((a[index][45] == tag) && (a[index][46] == 1))// tag and valid
-    {
-        hit++;
-        hitten =true;
-        rep=1;
-    }
-    
-    if(hitten == false)
-    {
-        for(int i=1; i<48;i+=3)
-        {
-            if(a[index][i]==0)
-                
-            {
-                miss++;
-                timer = time(NULL);
-                a[index][i-1] = tag;
-                a[index][i] = 1;
-                a[index][i+1] = timer;
-                rep=1;
-                break;
-                
-            }
-        }
-    }
-
-    if(hitten==false && rep==0)
-    {
-        miss++;
-        for(int i=2;i+3<48;i+=3)
-        {
-            if(a[index][i]<a[index][i+3])
-                
-                FIFOCounter=i;
-            else
-                
-                FIFOCounter=i+3;
-        }
-        {
-            timer = time(NULL);
-            
-            a[index][FIFOCounter-2] = tag;
-            a[index][FIFOCounter-1] = 1;
-            a[index][FIFOCounter] = timer;
-        }
-        
-    }
-    
-    
-    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
-    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
-}
-
-
 //----------------Fully Associative Function ---------------
 
-void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FApolicy , int & AMATWT , int & AMATWB)
+void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FApolicy , int & AMATmisscount , int & AMATWTh)
 {
    // cout<<hit;
     string strtag;
     int tag;
-
     
   
     FAParse ( address , strtag );
-
-
     tag = binToDec( strtag);
     if ( FAI == 124)
     {
@@ -740,7 +312,7 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
             LIFO = false;
         }
         
-        
+       
     }
    
     
@@ -753,9 +325,10 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
             {
                 hitf = true;
                 hit ++;
+                AMATWTFA(hitf ,AMATWTh);
             }
         }
-        
+       
         if (hitf == false)
         {
             
@@ -763,10 +336,11 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
             a[FAI][0] = tag;
             a[FAI][1] = 1;
             FAI++;
+            AMATWBFA (AMATmisscount ,a[FAI][2]);
+            a[FAI][2] = 1;
         }
         
     } //end of first if
-
   else if ( fullFlag == true)
   {
       if (FAI == 0)
@@ -784,15 +358,18 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
                     {
                        hitf = true;
                        hit ++;
-                    } // hahahah
+                        AMATWTFA(hitf ,AMATWTh);
+                    }
             }
-           
+            AMATWTFA(hitf , AMATWTh);
            if (hitf == false)
            {
                    miss++;
                    a[FAI][0] = tag;
                    a[FAI][1] = 1;
                    FAI -- ;
+               AMATWBFA (AMATmisscount ,a[FAI][2]);
+               a[FAI][2] = 1;
                
             }
                
@@ -807,8 +384,10 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
                    {
                        hitf = true;
                        hit ++;
+                       AMATWTFA(hitf ,AMATWTh);
                    }
                }
+               
                
                if (hitf == false)
                {
@@ -816,6 +395,8 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
                    a[FAI][0] = tag;
                    a[FAI][1] = 1;
                    FAI++;
+                   AMATWBFA (AMATmisscount ,a[FAI][2]);
+                   a[FAI][2] = 1;
                    
                }
            }
@@ -827,14 +408,14 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
       else if (FApolicy == 3)
       {
           bool hitf = false;
-          for ( int i =0 ; i < FAI ; i ++)
+          for ( int i =0 ; i < 125 ; i ++)
           {
               if ((a[i][0] == tag) && (a[i][1] == 1)) // tag and valid
               {
                   hitf = true;
-                  if (hitf = true)
                       FAI = i;
                   hit ++;
+                  AMATWTFA(hitf ,AMATWTh);
                   
               }
           }
@@ -844,6 +425,9 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
               miss++;
               a[FAI][0] = tag;
               a[FAI][1] = 1;
+              AMATWBFA (AMATmisscount ,a[FAI][2]);
+              a[FAI][2] = 1;
+              
            
               
           }
@@ -853,7 +437,7 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
       {
         
           bool hitf = false;
-          for ( int i =0 ; i < FAI ; i ++)
+          for ( int i =0 ; i < 125 ; i ++)
           {
               if ((a[i][0] == tag) && (a[i][1] == 1)) // tag and valid
               {
@@ -862,7 +446,7 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
               }
           }
           
-          
+           AMATWTFA(hitf , AMATWTh);
           
          if (hitf == false)
           {
@@ -870,6 +454,8 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
               miss++;
               a[i][0] = tag;
               a[i][1] = 1;
+              AMATWBFA (AMATmisscount ,a[i][2]);
+              a[i][2] = 1;
           }
           
       }
@@ -881,40 +467,260 @@ void fullyAssociative (int address , int a[][3], int & hit , int & miss , int FA
     
    // cout<<"FAI"<<FAI<<endl;
 
+}
 
-   
+// "----------------------- FA DM --------------------"
+
+void fullyAssociativeDM (int address , int a[][3], int & hit , int & miss , int FApolicy , int & AMATmisscount , int & AMATWTh)
+{
+    // cout<<hit;
+    string strtag;
+    int tag;
+    
+    
+    FAParse ( address , strtag );
+    tag = binToDec( strtag);
+    if ( FAIamat == 249)
+    {
+        fullFlag = true;
+        if (FApolicy == 1)
+        {
+            FAIamat = 0;
+            fullFlag = false;
+        }
+        else  if (FApolicy == 2)
+        {
+            LIFO = false;
+        }
+        
+        
+    }
+    
+    
+    if ( (FAIamat < 250) && fullFlag == false)
+    {
+        bool hitf = false;
+        for ( int i =0 ; i < FAIamat ; i ++)
+        {
+            if ((a[i][0] == tag) && (a[i][1] == 1)) // tag and valid
+            {
+                hitf = true;
+                hit ++;
+                AMATWTFA(hitf ,AMATWTh);
+            }
+        }
+        
+        if (hitf == false)
+        {
+            
+            miss++;
+            a[FAIamat][0] = tag;
+            a[FAIamat][1] = 1;
+            FAIamat++;
+            AMATWBFA (AMATmisscount ,a[FAIamat][2]);
+            a[FAIamat][2] = 1;
+        }
+        
+    } //end of first if
+    else if ( fullFlag == true)
+    {
+        if (FAIamat == 0)
+            LIFO = true;
+        
+        if (FApolicy == 2)
+        {
+            
+            if (LIFO ==  false)
+            {
+                bool hitf = false;
+                for ( int i =0 ; i < FAIamat ; i ++)
+                {
+                    if ((a[i][0] == tag) && (a[i][1] == 1)) // tag and valid
+                    {
+                        hitf = true;
+                        hit ++;
+                        AMATWTFA(hitf ,AMATWTh);
+                    }
+                }
+                AMATWTFA(hitf , AMATWTh);
+                if (hitf == false)
+                {
+                    miss++;
+                    a[FAIamat][0] = tag;
+                    a[FAIamat][1] = 1;
+                    FAIamat -- ;
+                    AMATWBFA (AMATmisscount ,a[FAIamat][2]);
+                    a[FAIamat][2] = 1;
+                    
+                }
+                
+            }
+            
+            if (LIFO == true)
+            {
+                bool hitf = false;
+                for ( int i =0 ; i < FAIamat ; i ++)
+                {
+                    if ((a[i][0] == tag) && (a[i][1] == 1)) // tag and valid
+                    {
+                        hitf = true;
+                        hit ++;
+                        AMATWTFA(hitf ,AMATWTh);
+                    }
+                }
+                
+                
+                if (hitf == false)
+                {
+                    miss++;
+                    a[FAIamat][0] = tag;
+                    a[FAIamat][1] = 1;
+                    FAIamat++;
+                    AMATWBFA (AMATmisscount ,a[FAIamat][2]);
+                    a[FAIamat][2] = 1;
+                    
+                }
+            }
+            
+            
+            
+            
+        }
+        else if (FApolicy == 3)
+        {
+            bool hitf = false;
+            for ( int i =0 ; i < FAIamat ; i ++)
+            {
+                if ((a[i][0] == tag) && (a[i][1] == 1)) // tag and valid
+                {
+                    hitf = true;
+                    if (hitf = true)
+                        FAIamat = i;
+                    hit ++;
+                    AMATWTFA(hitf ,AMATWTh);
+                    
+                }
+            }
+            
+            if (hitf == false)
+            {
+                miss++;
+                a[FAIamat][0] = tag;
+                a[FAIamat][1] = 1;
+                AMATWBFA (AMATmisscount ,a[FAIamat][2]);
+                a[FAIamat][2] = 1;
+                
+                
+            }
+            
+        }
+        else if (FApolicy == 4)
+        {
+            
+            bool hitf = false;
+            for ( int i =0 ; i < FAIamat ; i ++)
+            {
+                if ((a[i][0] == tag) && (a[i][1] == 1)) // tag and valid
+                {
+                    hitf = true;
+                    hit ++;
+                }
+            }
+            
+            AMATWTFA(hitf , AMATWTh);
+            
+            if (hitf == false)
+            {
+                int i = rand()%250;
+                miss++;
+                a[i][0] = tag;
+                a[i][1] = 1;
+                AMATWBFA (AMATmisscount ,a[FAIamat][2]);
+                a[FAIamat][2] = 1;
+            }
+            
+        }
+    }
+    
+    
+    
+    // cout << "Hits" << hit << "Miss" << miss << endl;
+    
+    // cout<<"FAI"<<FAI<<endl;
+    
 }
 // ------------- Direct Mapping Function ----------------------
-void directMapping ( int a[][2] ,int n ,  int address ,int & hit , int & miss , int wordsize)
+void directMapping ( int a[][3] ,int n ,  int address ,int & hit , int & miss , int wordsize , int & AMATmisscount , int &  AMATWTh)
 {
     int tag , index , valid;
     string strAddr , strTag , strIndex;
-    
-
+    bool hitf = false;
     getTagIndex (address , strIndex , strTag , wordsize);
    
    // cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
     tag = binToDec( strTag);
    index = binToDec(strIndex);
    // cout << "Index dec:" << index << endl;
-
+    
+ 
+    
+    if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
+    {
+        hit++;
+        hitf = true;
+          AMATWTFA(hitf , AMATWTh);
+    }
+    
+    
+        else
+        {
+            miss++;
+            a[index][0] = tag;
+            a[index][1] = 1;
+            AMATWBFA (AMATmisscount ,a[index][2]);
+            a[index][2] = 1;
+        }
+    
+//    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
+//    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
+}
+// -------------- Direct Mapping Amat------------------
+void directMappingAmat ( int a[][3] ,int n ,  int address ,int & hit , int & miss , int wordsize , int & AMATmisscount , int &  AMATWTh)
+{
+    int tag , index , valid;
+    string strAddr , strTag , strIndex;
+    bool hitf = false;
+    getTagIndexAmat (address , strIndex , strTag , wordsize);
+    
+    // cout << "Tag:" << strTag << endl << "Index"<< strIndex<< endl;
+    tag = binToDec( strTag);
+    index = binToDec(strIndex);
+    // cout << "Index dec:" << index << endl;
     
     
     
     if ((a[index][0] == tag) && (a[index][1] == 1))// tag and valid
     {
         hit++;
+        hitf = true;
+        AMATWTFA(hitf , AMATWTh);
     }
+    
+    
     else
     {
         miss++;
         a[index][0] = tag;
         a[index][1] = 1;
+        AMATWBFA (AMATmisscount ,a[index][2]);
+        a[index][2] = 1;
     }
     
-//    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
-//    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
+    //    cout << " MISS:" <<  miss <<endl <<"hit:" << hit <<endl;
+    //    cout << "Hit ratio : " << hitRatio ( hit , miss) << endl;
 }
+
+
 
 void nullifyArray( int a[][3] , int n )
 {
@@ -929,7 +735,7 @@ void nullifyArray( int a[][3] , int n )
     }
 }
 
-void nullifyArray2( int a[][2] , int n )
+void nullifyArray2( int a[][3] , int n )
 {
     
     
@@ -944,435 +750,932 @@ void nullifyArray2( int a[][2] , int n )
 
 
 
-
 char *msg[2] = {"Miss","Hit"};
 // ---------------- MAIN------------------------
 int main() 
-
-
 {
     int wordSize = 4;
     int FApolicy = 2;
     int Hit , Miss = 0 ;
     int iter , mem;
-
    
-    int FA [125][3] ;
+    int FA [125][3] , FAamat [250][3];
     int amatWBFA = 0 , amatWTFA = 0 ;
-
-    int byte4 [8000][2],byte8[4000][2],byte16[2000][2] ,byte32[1000][2], byte64[500][2] ,byte128[250][2];
-    
-    
-    int set4 [1024][12],set8[512][24],set16[256][48] ,set2[2048][6];
-    
-
+    int amatWBmiss = 0 , amatWThits = 0;
     cacheResType r;
     
     srand((unsigned) time (NULL));
     
     unsigned int addr;
     
-    
-    
-    cout << "Cache Simulator\n";
-
-  
-//     cout <<"----------------- MEM GEN 1----------------------" << endl;
-//    
+//    Hit = 0 ;
+//
+//    cout << "Cache Simulator\n";
+//
+//    cout << " ------------------ MEMGEN 1---------------------" << endl;
+//
+//    nullifyArray2( byte4 , 8000 );
+//
 //    for (int i = 0 ; i <1000000 ; i++)
 //    {
 //        mem = memGen1();
-//        
-//        directMapping(byte4, 8000, mem, Hit, Miss, 4);
-//        
-//        
-//        
+//
+//        directMapping(byte4, 8000, mem, Hit, Miss, 4 , amatWBmiss , amatWThits);
+//
+//
+//
 //    }
-//    
-//    
-//    
+//
+//
+//
 //    cout << "Direct Mapping Hits 4 Bytes: " << Hit << " Misses" << Miss << endl;
 //    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
 //    Hit = 0 ;
 //    Miss = 0 ;
-//    
+//    nullifyArray2( byte8 , 4000);
 //    for (int i = 0 ; i <1000000 ; i++)
 //    {
 //        mem = memGen1();
-//        
-//        directMapping(byte8, 4000, mem, Hit, Miss, 8);
-//        
-//        
-//        
+//
+//        directMapping(byte8, 4000, mem, Hit, Miss, 8, amatWBmiss , amatWThits);
+//
+//
+//
 //    }
-//    
-//    
-//    
-//    
+//
+//
+//
+//
 //    cout << "Direct Mapping Hits 8 Bytes: " << Hit << " Misses" << Miss << endl;
 //    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
 //    Hit = 0 ;
 //    Miss = 0 ;
-//    
+//
+//    nullifyArray2( byte16 , 2000 );
+//
 //    for (int i = 0 ; i <1000000 ; i++)
 //    {
 //        mem = memGen1();
-//        
-//        directMapping(byte16, 2000, mem, Hit, Miss, 16);
-//        
-//        
-//        
+//
+//        directMapping(byte16, 2000, mem, Hit, Miss, 16, amatWBmiss , amatWThits);
+//
+//
+//
 //    }
-//    
-//    
-//    
+//
+//
+//
 //    cout << "Direct Mapping Hits 16 Bytes: " << Hit << " Misses" << Miss << endl;
 //    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//    
-//    
+//
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
 //    Hit = 0 ;
 //    Miss = 0 ;
+//
+//    nullifyArray2( byte32 , 1000 );
 //    for (int i = 0 ; i <1000000 ; i++)
 //    {
 //        mem = memGen1();
-//        
-//        directMapping(byte32, 1000, mem, Hit, Miss, 32);
-//        
-//        
-//        
+//
+//        directMapping(byte32, 1000, mem, Hit, Miss, 32, amatWBmiss , amatWThits);
+//
+//
+//
 //    }
-//    
-//    
-//    
+//
+//
+//
 //    cout << "Direct Mapping Hits 32 Bytes: " << Hit << " Misses" << Miss << endl;
 //    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
 //    Hit = 0 ;
 //    Miss = 0 ;
-//    
-//    
+//    nullifyArray2( byte64 , 500 );
+//
 //    for (int i = 0 ; i <1000000 ; i++)
 //    {
 //        mem = memGen1();
-//        
-//        directMapping(byte64, 500, mem, Hit, Miss, 64);
-//        
-//        
-//        
+//
+//        directMapping(byte64, 500, mem, Hit, Miss, 64, amatWBmiss , amatWThits);
+//
+//
+//
 //    }
-//    
-//    
-//    
+//
+//
+//
 //    cout << "Direct Mapping Hits 64 Bytes: " << Hit << " Misses" << Miss << endl;
 //    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//    
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//
 //    Hit = 0 ;
 //    Miss = 0 ;
-//    
+//    nullifyArray2( byte128 , 250 );
 //    for (int i = 0 ; i <1000000 ; i++)
 //    {
 //        mem = memGen1();
-//        
-//        directMapping(byte128, 250, mem, Hit, Miss, 128);
-//        
+//
+//        directMapping(byte128, 250, mem, Hit, Miss, 128, amatWBmiss , amatWThits);
+//
 //    }
-//    
-//    
-//    
-//    
-//    
+//
+//
+//
+//
+//
 //    cout << "Direct Mapping Hits 128 Bytes: " << Hit << " Misses" << Miss << endl;
 //    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//    
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
 //    Hit = 0 ;
 //    Miss = 0 ;
-    
-   cout <<"----------------- MEM GEN 2----------------------" << endl;
-    
-    nullifyArray2( byte4 , 8000 );
-    
+//
+//
+//   cout <<"----------------- MEM GEN 2----------------------" << endl;
+//
+//    nullifyArray2( byte4 , 8000 );
+//
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        directMapping(byte4, 8000, mem, Hit, Miss, 4 , amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//       cout << "Direct Mapping Hits 4 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    nullifyArray2( byte8 , 4000);
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        directMapping(byte8, 4000, mem, Hit, Miss, 8, amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//
+//    cout << "Direct Mapping Hits 8 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//
+//    nullifyArray2( byte16 , 2000 );
+//
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        directMapping(byte16, 2000, mem, Hit, Miss, 16, amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//    cout << "Direct Mapping Hits 16 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//
+//    nullifyArray2( byte32 , 1000 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        directMapping(byte32, 1000, mem, Hit, Miss, 32, amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//    cout << "Direct Mapping Hits 32 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    nullifyArray2( byte64 , 500 );
+//
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        directMapping(byte64, 500, mem, Hit, Miss, 64, amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//    cout << "Direct Mapping Hits 64 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    nullifyArray2( byte128 , 250 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        directMapping(byte128, 250, mem, Hit, Miss, 128, amatWBmiss , amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//    cout << "Direct Mapping Hits 128 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//
+//    cout << " ---------------------MEM GEN 3 -----------------" << endl;
+//
+//    nullifyArray2( byte4 , 8000 );
+//
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        directMapping(byte4, 8000, mem, Hit, Miss, 4 , amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//    cout << "Direct Mapping Hits 4 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    nullifyArray2( byte8 , 4000);
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        directMapping(byte8, 4000, mem, Hit, Miss, 8, amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//
+//    cout << "Direct Mapping Hits 8 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//
+//    nullifyArray2( byte16 , 2000 );
+//
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        directMapping(byte16, 2000, mem, Hit, Miss, 16, amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//    cout << "Direct Mapping Hits 16 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//
+//    nullifyArray2( byte32 , 1000 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        directMapping(byte32, 1000, mem, Hit, Miss, 32, amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//    cout << "Direct Mapping Hits 32 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    nullifyArray2( byte64 , 500 );
+//
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        directMapping(byte64, 500, mem, Hit, Miss, 64, amatWBmiss , amatWThits);
+//
+//
+//
+//    }
+//
+//
+//
+//    cout << "Direct Mapping Hits 64 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    nullifyArray2( byte128 , 250 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        directMapping(byte128, 250, mem, Hit, Miss, 128, amatWBmiss , amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//    cout << "Direct Mapping Hits 128 Bytes: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+
+//    cout << " ----------------- MEM GEN1----------------" <<endl;
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen1();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 1, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 1 Hits: " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    float x;
+//    cout << "amat Miss" << amatWBmiss << endl;
+//    x= CalculatingAMATWB(Miss, Hit, amatWBmiss);
+//    cout << " AMAT Write Back : " << x <<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    FAI=0;
+
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen1();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 2, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 2 Hits" << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    FAI = 0;
+//
+//    nullifyArray( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen1();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 3, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//    cout << "fullyAssociative Policy 3 Hits" << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    FAI = 0;
+//
+//    nullifyArray2(FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen1();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 4, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 4 Hits" << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    FAI = 0;
+
+
+//    cout << " ---------------------- MEM Gen 2 -----------------" << endl;
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 1, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 1 Hits " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    FAI = 0;
+//
+//
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 2, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 2 Hits " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    FAI = 0;
+//
+//
+//
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 3, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 3 Hits " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//    FAI = 0;
+//
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen2();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 4, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 4 Hits " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+
+
+
+
+//    cout << "------------- MEM Gen 3--------------" << endl;
+//
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 1, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 1 Hits " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//
+//
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 2, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 2 Hits " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 3, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 3 Hits" << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+//
+//
+//
+//    nullifyArray2( FA, 125 );
+//    for (int i = 0 ; i <1000000 ; i++)
+//    {
+//        mem = memGen3();
+//
+//        fullyAssociative(mem, FA, Hit, Miss, 4, amatWBmiss, amatWThits);
+//
+//    }
+//
+//
+//
+//
+//
+//
+//
+//    cout << "fullyAssociative Policy 4 Hits " << Hit << " Misses" << Miss << endl;
+//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+//    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+//    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+//    amatWBmiss=0;
+//    amatWThits=0;
+//    Hit = 0 ;
+//    Miss = 0 ;
+
+    cout << " -------------------------------- AMAT --------------------------" << endl;
+
+
+
+    cout << " ----------------- DM AMAT----------------------"<< endl;
+
+    cout << " ----------------- MEM GEN 1----------------------"<< endl;
+
+    nullifyArray2( DMamat , 250);
+
     for (int i = 0 ; i <1000000 ; i++)
     {
-        mem = memGen2();
-        
-        directMapping(byte4, 8000, mem, Hit, Miss, 4);
-        
-     
-        
-    }
-    
+        mem = memGen1();
 
-    
-       cout << "Direct Mapping Hits 4 Bytes: " << Hit << " Misses" << Miss << endl;
-    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-    Hit = 0 ;
-    Miss = 0 ;
-    nullifyArray2( byte8 , 4000);
-    for (int i = 0 ; i <1000000 ; i++)
-    {
-        mem = memGen2();
-        
-        directMapping(byte8, 4000, mem, Hit, Miss, 8);
-        
-        
-        
-    }
-    
-  
-    
-    
-    cout << "Direct Mapping Hits 8 Bytes: " << Hit << " Misses" << Miss << endl;
-    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-    Hit = 0 ;
-    Miss = 0 ;
-    nullifyArray2( byte16 , 2000 );
-    
-    for (int i = 0 ; i <1000000 ; i++)
-    {
-        mem = memGen2();
-        
-        directMapping(byte16, 2000, mem, Hit, Miss, 16);
-        
-        
-        
+        directMappingAmat(DMamat, 250, mem, Hit, Miss, 0, amatWBmiss , amatWThits);
 
-        
-        SetAssociative2(mem , set2, Hit , Miss);
+
 
     }
-    
-  
-    
+
+
+
     cout << "Direct Mapping Hits 16 Bytes: " << Hit << " Misses" << Miss << endl;
     cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-    
-    
+
+    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+    amatWBmiss=0;
+    amatWThits=0;
     Hit = 0 ;
     Miss = 0 ;
-    
-    nullifyArray2( byte32 , 1000 );
+
+
+
+
+    cout << " ----------------- MEM GEN 2----------------------"<< endl;
+
+    nullifyArray2( DMamat , 250);
+
     for (int i = 0 ; i <1000000 ; i++)
     {
         mem = memGen2();
-        
-        directMapping(byte32, 1000, mem, Hit, Miss, 32);
-        
-        
-        
-    }
-    
 
-    
-    cout << "Direct Mapping Hits 32 Bytes: " << Hit << " Misses" << Miss << endl;
+        directMappingAmat(DMamat, 250, mem, Hit, Miss, 0, amatWBmiss , amatWThits);
+
+
+
+    }
+
+
+
+    cout << "Direct Mapping Hits 16 Bytes: " << Hit << " Misses" << Miss << endl;
     cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+
+    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+    amatWBmiss=0;
+    amatWThits=0;
     Hit = 0 ;
     Miss = 0 ;
-    nullifyArray2( byte64 , 500 );
-    
+
+
+
+     cout << " ----------------- MEM GEN 3----------------------"<< endl;
+
+    nullifyArray2( DMamat , 250);
+
+        for (int i = 0 ; i <1000000 ; i++)
+        {
+            mem = memGen3();
+
+            directMappingAmat(DMamat, 250, mem, Hit, Miss, 0, amatWBmiss , amatWThits);
+
+
+
+        }
+
+
+
+        cout << "Direct Mapping Hits 16 Bytes: " << Hit << " Misses" << Miss << endl;
+        cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+
+        cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+        cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+        amatWBmiss=0;
+        amatWThits=0;
+        Hit = 0 ;
+        Miss = 0 ;
+
+
+    cout << "---------------------------- FA AMAT -----------------------"<< endl;
+
+    cout << " ----------- MEM GEn 1--------- " << endl;
+
+    nullifyArray2( FAamat, 125 );
+    for (int i = 0 ; i <1000000 ; i++)
+    {
+        mem = memGen1();
+
+        fullyAssociative(mem, FAamat, Hit, Miss, 4, amatWBmiss, amatWThits);
+
+    }
+
+
+
+
+
+
+
+    cout << "fullyAssociative Policy 4 Hits " << Hit << " Misses" << Miss << endl;
+    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
+    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+    amatWBmiss=0;
+    amatWThits=0;
+    Hit = 0 ;
+    Miss = 0 ;
+
+
+
+    cout << " ----------- MEM GEn 2--------- " << endl;
+
+    nullifyArray2( FAamat, 125 );
     for (int i = 0 ; i <1000000 ; i++)
     {
         mem = memGen2();
-        
-        directMapping(byte64, 500, mem, Hit, Miss, 64);
-        
-        
-        
+
+        fullyAssociative(mem, FAamat, Hit, Miss, 4, amatWBmiss, amatWThits);
+
     }
 
-    
-    
-    cout << "Direct Mapping Hits 64 Bytes: " << Hit << " Misses" << Miss << endl;
+
+
+
+
+
+
+    cout << "fullyAssociative Policy 4 Hits " << Hit << " Misses" << Miss << endl;
     cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-    
+    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+    amatWBmiss=0;
+    amatWThits=0;
     Hit = 0 ;
     Miss = 0 ;
-    nullifyArray2( byte128 , 250 );
+
+
+
+
+
+
+    cout << " ----------- MEM GEn 3--------- " << endl;
+
+    nullifyArray2( FAamat, 125 );
     for (int i = 0 ; i <1000000 ; i++)
     {
-        mem = memGen2();
-        
-        directMapping(byte128, 250, mem, Hit, Miss, 128);
-        
+        mem = memGen3();
+
+        fullyAssociative(mem, FAamat, Hit, Miss, 4, amatWBmiss, amatWThits);
+
     }
-    
 
 
-    
-    
-    cout << "Direct Mapping Hits 128 Bytes: " << Hit << " Misses" << Miss << endl;
+
+
+
+
+
+    cout << "fullyAssociative Policy 4 Hits " << Hit << " Misses" << Miss << endl;
     cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-    
+    cout << " AMAT Write Through : " << CalculatingAMATWT(amatWThits,Miss)<<endl;
+    cout << " AMAT Write Back : " << CalculatingAMATWB(Miss, Hit, amatWBmiss)<<endl;
+    amatWBmiss=0;
+    amatWThits=0;
     Hit = 0 ;
     Miss = 0 ;
-    
-//
-//    cout <<"----------------- MEM GEN 3----------------------" << endl;
-//
-//    for (int i = 0 ; i <1000000 ; i++)
-//    {
-//        mem = memGen3();
-//
-//        directMapping(byte4, 8000, mem, Hit, Miss, 4);
-//
-//
-//
-//    }
-//
-//
-//
-//    cout << "Direct Mapping Hits 4 Bytes: " << Hit << " Misses" << Miss << endl;
-//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//    Hit = 0 ;
-//    Miss = 0 ;
-//
-//    for (int i = 0 ; i <1000000 ; i++)
-//    {
-//        mem = memGen3();
-//
-//        directMapping(byte8, 4000, mem, Hit, Miss, 8);
-//
-//
-//
-//    }
-//
-//
-//
-//
-//    cout << "Direct Mapping Hits 8 Bytes: " << Hit << " Misses" << Miss << endl;
-//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//    Hit = 0 ;
-//    Miss = 0 ;
-//
-//    for (int i = 0 ; i <1000000 ; i++)
-//    {
-//        mem = memGen3();
-//        
-//        directMapping(byte16, 2000, mem, Hit, Miss, 16);
-//
-//
-//        
-//    }
-//
-//
-//
-//    cout << "Direct Mapping Hits 16 Bytes: " << Hit << " Misses" << Miss << endl;
-//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//
-//
-//    Hit = 0 ;
-//    Miss = 0 ;
-//    for (int i = 0 ; i <1000000 ; i++)
-//    {
-//        mem = memGen3();
-//
-//        directMapping(byte32, 1000, mem, Hit, Miss, 32);
-//
-//
-//
-//    }
-//    
-//
-//
-//    cout << "Direct Mapping Hits 32 Bytes: " << Hit << " Misses" << Miss << endl;
-//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//    Hit = 0 ;
-//    Miss = 0 ;
-//
-//
-//    for (int i = 0 ; i <1000000 ; i++)
-//    {
-//        mem = memGen3();
-//
-//        directMapping(byte64, 500, mem, Hit, Miss, 64);
-//        
-//
-//
-//    }
-//
-//
-//
-//    cout << "Direct Mapping Hits 64 Bytes: " << Hit << " Misses" << Miss << endl;
-//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//
-//    Hit = 0 ;
-//    Miss = 0 ;
-//
-//    for (int i = 0 ; i <1000000 ; i++)
-//    {
-//        mem = memGen3();
-//        
-//        directMapping(byte128, 250, mem, Hit, Miss, 128);
-//
-//    }
-//
-//
-//
-//
-//    
-//    cout << "Direct Mapping Hits 128 Bytes: " << Hit << " Misses" << Miss << endl;
-//    cout <<"Hit Ratio " << hitRatio(Hit, Miss) <<endl;
-//
-//    Hit = 0 ;
-//    Miss = 0 ;
-//
-//    for (int i = 0 ; i <10000 ; i++)
-//    {
-//    mem = memGen2();
-//
-//        mem = rand()%10;
-//        fullyAssociative(mem, FA , Hit , Miss ,1 , amatWBFA , amatWTFA );
-//        
-//    }
-//    
-//    cout << " FIFO MISS:" << Miss << " HIT: " << Hit <<endl;
-//    Hit = 0 ;
-//    Miss = 0;
-//    nullifyArray( FA , 125 );
-//    FAI = 0;
-//     fullFlag = false;
-//   
-//    for (int i = 0 ; i <10000 ; i++)
-//    {
-//        mem = memGen2();
-// 
-//        mem = rand()%10;
-//        fullyAssociative(mem, FA , Hit , Miss ,2 ,amatWBFA , amatWTFA);
-//    }
-//      cout << "  LIFO MISS:" << Miss << " HIT: " << Hit << endl;
-//    Hit = 0 ;
-//    Miss = 0;
-//     nullifyArray( FA , 125 );
-//     FAI = 0;
-//    fullFlag = false;
-//    
-//    for (int i = 0 ; i <10000 ; i++)
-//    {
-//        mem = memGen2();
-//  mem = rand()%10;
-//        fullyAssociative(mem, FA , Hit , Miss ,3 , amatWBFA , amatWTFA );
-//    }
-//      cout << " MRU MISS:" << Miss << " HIT: " << Hit <<endl;
-//    Hit = 0 ;
-//    Miss = 0;
-//     nullifyArray( FA , 125 );
-//   FAI = 0;
-//     fullFlag = false;
-//    
-//    for (int i = 0 ; i <10000 ; i++)
-//    {
-//        mem = memGen2();
-//
-//        fullyAssociative(mem, FA , Hit , Miss ,4 , amatWBFA , amatWTFA);
-//    }
-//      cout << " Random MISS:" << Miss << " HIT: " << Hit <<endl;
-//    
 
-    
-    // change the number of iterations into a minimum of 1,000,000
-    //    for(iter=0;iter<100000;iter++)
-    //    {
-    //        addr = memGen1();
-    //        r = cacheSim(addr);
-    //        cout <<"0x" << setfill('0') << setw(8) << hex << addr <<" ("<< msg[r] <<")\n";
-    //    }
-    //commit
+
+
 }
